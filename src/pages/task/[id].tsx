@@ -3,7 +3,7 @@ import Head from "next/head";
 import styles from './styles.module.css'
 
 import { db } from "@/services/firebaseConnection";
-import { doc, collection, query, where, getDoc, addDoc, getDocs } from 'firebase/firestore'
+import { doc, collection, query, where, getDoc, addDoc, getDocs, deleteDoc } from 'firebase/firestore'
 import { Textarea } from "@/components/textarea";
 import { useSession } from "next-auth/react";
 import { useState, ChangeEvent, FormEvent } from "react";
@@ -47,6 +47,18 @@ export default function Task({ task, comments }: ITask) {
         const year = date.getFullYear();
 
         return `${day}/${month}/${year}`;
+    }
+
+    async function handleDeleteComment(commentId: string) {
+        try {
+            await deleteDoc(doc(db, 'comments', commentId))
+
+            const newCommentsList = commentsList.filter((comment) => comment.id !== commentId)
+
+            setCommentsList(newCommentsList)
+        } catch (error) {
+            alert(`Erro ao deletar o comentário: ${error}`)
+        }
     }
 
     async function handleComment(e: FormEvent) {
@@ -136,7 +148,7 @@ export default function Task({ task, comments }: ITask) {
                                 <p className={styles.textComment}>{comment.comment}</p>
                             </div>
                             {comment.user.email === session?.user?.email && (
-                                <button className={styles.buttonTrash}>
+                                <button onClick={() => handleDeleteComment(comment.id)} className={styles.buttonTrash}>
                                     <FaTrash size={20} color="#ea3140" />
                                 </button>
                             )}
