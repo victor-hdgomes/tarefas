@@ -3,11 +3,11 @@ import Head from "next/head";
 import styles from './styles.module.css'
 
 import { db } from "@/services/firebaseConnection";
-import { doc, collection, query, where, getDoc, addDoc } from 'firebase/firestore'
+import { doc, collection, query, where, getDoc, addDoc, getDocs } from 'firebase/firestore'
 import { Textarea } from "@/components/textarea";
 import { useSession } from "next-auth/react";
 import { useState, ChangeEvent, FormEvent } from "react";
-import { set } from "firebase/database";
+import { FaTrash } from 'react-icons/fa';
 
 interface ITask {
     task: {
@@ -16,14 +16,38 @@ interface ITask {
         isPublic: boolean;
         tarefa: string;
         user: string;
+    };
+    comments: IComment[]
+}
+
+interface IComment {
+    id: string;
+    comment: string;
+    created: string;
+    taskId: string;
+    user: {
+        email: string;
+        name: string;
+        image: string;
     }
 }
 
-export default function Task({ task }: ITask) {
+export default function Task({ task, comments }: ITask) {
 
     const { data: session } = useSession();
 
     const [inputValue, setInputValue] = useState('')
+    const [commentsList, setCommentsList] = useState<IComment[]>(comments)
+
+    function formatDate(dateString: string): string {
+        const date = new Date(dateString);
+
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+
+        return `${day}/${month}/${year}`;
+    }
 
     async function handleComment(e: FormEvent) {
         e.preventDefault();
@@ -40,9 +64,23 @@ export default function Task({ task }: ITask) {
             const docRef = await addDoc(collection(db, 'comments'), {
                 user: session?.user,
                 comment: inputValue,
-                task: task.id,
+                taskId: task.id,
                 created: new Date()
-            })
+            });
+    
+            const newComment: IComment = {
+                id: docRef.id,
+                user: {
+                    email: session?.user?.email || '',
+                    name: session?.user?.name || '',
+                    image: session?.user?.image || ''
+                },
+                comment: inputValue,
+                taskId: task.id,
+                created: new Date().toISOString()
+            };
+    
+            setCommentsList((oldComments) => [...oldComments, newComment]);
 
             setInputValue('')
         } catch (error) {
@@ -80,6 +118,34 @@ export default function Task({ task }: ITask) {
                     </button>
                 </form>
             </section>
+
+            <section className={styles.commentsContainer}>
+                <h2>Todos comentários</h2>
+
+                {commentsList.length > 0 ? (
+                    commentsList.map((comment) => (
+                        <article key={comment.id} className={styles.comment}>
+                            <div className={styles.commentContainer}>
+                                <div>
+                                    <img src={comment.user.image} alt={comment.user.name} />
+                                    <div>
+                                        <strong>{comment.user.name}</strong>
+                                        <p>{formatDate(comment.created)}</p>
+                                    </div>
+                                </div>
+                                <p className={styles.textComment}>{comment.comment}</p>
+                            </div>
+                            {comment.user.email === session?.user?.email && (
+                                <button className={styles.buttonTrash}>
+                                    <FaTrash size={20} color="#ea3140" />
+                                </button>
+                            )}
+                        </article>
+                    ))
+                ) : (
+                    <p>Essa task não possui comentário, seja o primeiro a comentar.</p>
+                )}
+            </section>
         </div>
     )
 }
@@ -90,6 +156,20 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
     const docRef = doc(db, "tarefas", id)
 
     const snapshot = await getDoc(docRef)
+
+    const commentsQuery = query(collection(db, 'comments'), where('taskId', '==', id))
+    const commentsSnapshot = await getDocs(commentsQuery)
+
+    let comments: IComment[] = []
+    commentsSnapshot.forEach((doc) => {
+        comments.push({
+            id: doc.id,
+            comment: doc.data().comment,
+            created: doc.data().created.toDate().toISOString(),
+            taskId: doc.data().taskId,
+            user: doc.data().user
+        })
+    })
 
     if (!snapshot.data() || !snapshot.data()?.isPublic) {
         return {
@@ -113,6 +193,7 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
     return {
         props: {
             task,
+            comments,
         },
     };
 };

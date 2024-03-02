@@ -66,3 +66,42 @@
 .button:hover:not(:disabled) {
     background-color: #0f51b4;
 }
+
+.comment {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.commentContainer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+}
+
+.commentContainer div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.textComment {
+    margin-left: 14px;
+    white-space: pre-wrap;
+}
+
+.comment div img {
+    border-radius: 50%;
+    max-width: min-content;
+}
+
+.buttonTrash {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
