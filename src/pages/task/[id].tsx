@@ -3,8 +3,11 @@ import Head from "next/head";
 import styles from './styles.module.css'
 
 import { db } from "@/services/firebaseConnection";
-import { doc, collection, query, where, getDoc } from 'firebase/firestore'
+import { doc, collection, query, where, getDoc, addDoc } from 'firebase/firestore'
 import { Textarea } from "@/components/textarea";
+import { useSession } from "next-auth/react";
+import { useState, ChangeEvent, FormEvent } from "react";
+import { set } from "firebase/database";
 
 interface ITask {
     task: {
@@ -17,6 +20,36 @@ interface ITask {
 }
 
 export default function Task({ task }: ITask) {
+
+    const { data: session } = useSession();
+
+    const [inputValue, setInputValue] = useState('')
+
+    async function handleComment(e: FormEvent) {
+        e.preventDefault();
+
+        if (inputValue.trim() === '') {
+            alert('Digite um comentário')
+        }
+
+        if (!session?.user || !session?.user?.email) {
+            alert('Você precisa estar logado para comentar')
+        }
+
+        try {
+            const docRef = await addDoc(collection(db, 'comments'), {
+                user: session?.user,
+                comment: inputValue,
+                task: task.id,
+                created: new Date()
+            })
+
+            setInputValue('')
+        } catch (error) {
+            alert(`Erro ao adicionar um comentário: ${error}`)
+        }
+    }
+
     return (
         <div className={styles.container}>
             <Head>
@@ -34,11 +67,17 @@ export default function Task({ task }: ITask) {
             <section className={styles.commentsContainer}>
                 <h2>Deixar comentário</h2>
 
-                <form action="">
-                    <Textarea 
+                <form onSubmit={handleComment}>
+                    <Textarea
+                        value={inputValue}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInputValue(e.target.value)}
                         placeholder="Digite seu comentário aqui..."
                     />
-                    <button className={styles.button}>Enviar comentário</button>
+                    <button
+                        disabled={!session?.user}
+                        className={styles.button}>
+                        Enviar comentário
+                    </button>
                 </form>
             </section>
         </div>
